@@ -1,4 +1,3 @@
-
 package com.daa.metrics;
 
 public class Metrics {
@@ -37,8 +36,15 @@ public class Metrics {
         maxDepth = Math.max(maxDepth, depth);
     }
 
-
     public void recordMemory(long cells) {
         memoryCells = Math.max(memoryCells, cells);
+    }
+
+    public long getTotalComparisons() {
+        return charComparisons;
+    }
+
+    public long getTotalSearchComparisons() {
+        return textComparisons + lpsComparisons;
     }
 }

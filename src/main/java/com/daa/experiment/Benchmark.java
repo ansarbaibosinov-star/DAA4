@@ -114,7 +114,9 @@ public class Benchmark {
         for (int size : DP_SIZES) {
 
             String identical = generator.identicalString(size);
-            String different = generator.differentString(size);
+
+            String differentA = generator.differentString(size);
+            String differentB = generator.identicalString(size);
 
             String randomA = generator.randomString(size);
             String randomB = generator.randomString(size);
@@ -145,8 +147,8 @@ public class Benchmark {
                 runEditCase(
                         algorithms[i],
                         "different",
-                        different,
-                        different,
+                        differentA,
+                        differentB,
                         runners[i]
                 );
 

@@ -1,225 +1,264 @@
-# DAA Assignment 4 — Experimental Report
-## Dynamic Programming and String Algorithms
+# DAA Assignment 4
+# Dynamic Programming and String Algorithms
 
 ## 1. Experiment Design Card
 
-**Project scenario:** City Search & Spell-Check
+**Scenario:** City Search & Spell-Check.
 
-**Objective:** Compare different algorithms for string similarity and pattern searching. The goal is to understand how their execution time, operation counts, and memory requirements change as input sizes increase.
+**Goal:** Compare different Edit Distance and String Search implementations using execution time, operation counters, and auxiliary memory estimates.
 
-### Experiment A — Edit Distance
+### Experiment questions
 
-**Research question:** How do recursive and dynamic programming implementations of Edit Distance differ in execution time and memory usage?
+1. How does the input affect the performance of recursive Edit Distance, and how does it compare with dynamic programming?
+2. How do Naive String Search and KMP differ in the number of character comparisons for different text and pattern sizes?
 
-**Algorithms:**
-- Recursive Edit Distance
-- Table Edit Distance
-- Two Rows Edit Distance
+### Algorithms
 
-**Input types:**
-- `identical` — two identical strings.
-- `different` — strings containing different repeated characters.
-- `random` — randomly generated strings.
+**Edit Distance:**
+- Recursive — direct recursion without memoization.
+- Table — bottom-up dynamic programming using a full table.
+- TwoRows — dynamic programming using two rows.
 
-**Input sizes:**
-- Recursive: 2, 4, 6, 8, 10.
-- Table and Two Rows: 100, 200, 400, 800.
+**String Search:**
+- Naive — checks possible pattern alignments one by one.
+- KMP — uses the LPS array to avoid unnecessary comparisons.
 
-**Metrics:**
-- Execution time in milliseconds.
+### Input sizes
+
+| Experiment | Sizes |
+|---|---|
+| Recursive Edit Distance | 2, 4, 6, 8, 10, 12 |
+| Table and TwoRows | 100, 200, 400, 800 |
+| String Search text | 2,000, 4,000, 8,000, 16,000 |
+| String Search pattern | 20, 40, 80, 160 |
+
+The largest input is at least four times larger than the smallest input in each main experiment series.
+
+### Input types
+
+**Edit Distance:**
+- Identical strings.
+- Different strings.
+- Random strings.
+
+**String Search:**
+- Best case.
+- Worst case.
+- Random input.
+- Fixed pattern with growing text.
+- Fixed text with growing pattern.
+- Overlapping matches.
+
+A fixed random seed (`42`) is used to make generated inputs reproducible.
+
+### Metrics
+
+- Median execution time in milliseconds, calculated from five runs.
 - Recursive calls.
 - Dynamic programming cells.
 - Character comparisons.
 - Maximum recursion depth.
-- Memory cells.
+- Estimated auxiliary storage cells.
+- Text comparisons and LPS preprocessing comparisons.
+- Number of matches returned.
 
-**Prediction:** The recursive implementation should become significantly slower as input length increases because it repeatedly solves overlapping subproblems. Table and Two Rows should have polynomial time complexity. Two Rows should use substantially less additional memory than the full table.
+The `char_comparisons` metric for KMP includes both text-search comparisons and LPS preprocessing comparisons.
 
-### Experiment B — String Searching
+### Predictions
 
-**Research question:** How does KMP compare with Naive Search when searching for patterns in different types of text?
+- Recursive Edit Distance will grow very quickly on different strings because it has no memoization.
+- Table and TwoRows will have \(O(nm)\) time complexity.
+- TwoRows will use significantly less auxiliary memory than Table.
+- KMP will perform fewer comparisons than Naive on difficult search inputs.
+- Naive may remain competitive on simple inputs because it has less preprocessing overhead.
 
-**Algorithms:**
-- Naive Search
-- Knuth-Morris-Pratt (KMP)
+### Plots
 
-**Input types:**
-- `best_case` — text consists of B characters and the pattern consists of A characters.
-- `worst_case` — text consists of A characters, while the pattern contains mostly A characters and ends with B.
-- `random` — randomly generated text and patterns.
-
-**Text and pattern sizes:**
-
-| Text size | Pattern size |
-|---:|---:|
-| 2,000 | 20 |
-| 4,000 | 40 |
-| 8,000 | 80 |
-| 16,000 | 160 |
-
-**Metrics:**
-- Execution time in milliseconds.
-- Character comparisons.
-- Text comparisons.
-- LPS comparisons.
-- Naive alignments tried.
-- KMP fallback operations.
-
-**Prediction:** Naive Search should perform poorly on the worst-case input because it repeatedly compares long prefixes. KMP should avoid many repeated comparisons by using the LPS array.
-
-### Experimental procedure
-
-- A fixed random seed (`42`) is used for reproducibility.
-- Each experiment includes a warm-up run.
-- Each measured configuration is executed five times.
-- Median execution time is used to reduce the influence of occasional timing fluctuations.
-- Operation counters are collected during algorithm execution.
-- Results are saved in `results/results.csv`.
+Eight plots are generated:
+1. Edit Distance execution time.
+2. Edit Distance auxiliary storage.
+3. Recursive Edit Distance execution time.
+4. Recursive calls.
+5. String Search character comparisons.
+6. Naive/KMP comparison ratio.
+7. Fixed pattern with growing text.
+8. Fixed text with growing pattern.
 
 ---
 
-## 2. Algorithms and Complexity
+## 2. Experimental Results
 
-### Edit Distance
+The benchmark produced 420 CSV rows, representing 84 unique experiment configurations with five runs per configuration.
 
-Edit Distance calculates the minimum number of insertions, deletions, and substitutions needed to transform one string into another.
+### 2.1 Edit Distance
 
-| Algorithm | Time complexity | Additional space |
-|---|---|---|
-| Recursive | Exponential in the worst case | O(n + m) recursion stack |
-| Table | O(n × m) | O(n × m) |
-| Two Rows | O(n × m) | O(m), when the shorter dimension is used for the row |
+The Table and TwoRows implementations both perform \(O(nm)\) dynamic programming work.
 
-The recursive implementation directly explores possible operations without memoization. The Table implementation stores intermediate results in a two-dimensional array. Two Rows keeps only the current and previous DP rows.
+At input size \(n=800\), both algorithms processed 640,000 DP cells. However, their auxiliary storage differed significantly:
 
-### String Searching
+| Algorithm | Auxiliary storage cells |
+|---|---:|
+| Table | 641,601 |
+| TwoRows | 1,602 |
 
-| Algorithm | Preprocessing | Searching |
-|---|---|---|
-| Naive Search | O(1) | O(n × m) worst case |
-| KMP | O(m) | O(n) |
+TwoRows used approximately 400 times fewer auxiliary storage cells at this input size.
 
-Here, `n` is the text length and `m` is the pattern length.
+The execution-time measurements did not show that TwoRows is always faster. At \(n=800\) with different strings, Table took 7.3128 ms, while TwoRows took 5.6571 ms. However, timing results can vary because of JVM and system activity.
 
-KMP constructs an LPS (Longest Prefix Suffix) array. This array allows the algorithm to reuse information from previous comparisons instead of restarting from the beginning of the pattern.
+**Plot takeaway:** TwoRows provides a substantial memory advantage while preserving the same DP time complexity. Its execution-time advantage is not guaranteed for every input size.
 
----
-
-## 3. Experimental Results
-
-The benchmark data is stored in `results/results.csv`. The generated charts are stored in `results/plots/`.
-
-### 3.1 Edit Distance Execution Time
-
-![Edit Distance Execution Time](results/plots/edit_distance_time.png)
-
-**Observation:** The chart compares the execution time of the Table and Two Rows implementations for different input sizes. Both implementations have O(n × m) time complexity. Their measured times may differ because of memory access patterns and runtime overhead.
-
-**Takeaway:** Two Rows reduces memory usage while preserving the same asymptotic time complexity.
-
-### 3.2 Edit Distance Memory Usage
+![Edit Distance Time](results/plots/edit_distance_time.png)
 
 ![Edit Distance Memory](results/plots/edit_distance_memory.png)
 
-**Observation:** Table stores the complete DP matrix, while Two Rows stores only two rows.
+### 2.2 Recursive Edit Distance
 
-For two strings of length 800, the full table contains:
+The recursive implementation behaved very differently for identical and different strings.
 
-- Table: (800 + 1) × (800 + 1) = 641,601 cells.
-- Two Rows: 2 × (800 + 1) = 1,602 cells.
+For identical strings, the implementation finished quickly because matching characters allowed it to follow a much shorter recursive path.
 
-**Takeaway:** Two Rows significantly reduces additional memory requirements.
+For different strings, the number of recursive calls increased rapidly:
 
-### 3.3 String Search Character Comparisons
+| Input size | Recursive calls | Median time |
+|---:|---:|---:|
+| 2 | 19 | 0.0096 ms |
+| 4 | 481 | 0.0885 ms |
+| 6 | 13,483 | 0.2988 ms |
+| 8 | 398,593 | 2.9981 ms |
+| 10 | 12,146,179 | 97.4191 ms |
+| 12 | 377,393,953 | 2019.7967 ms |
 
-![String Search Comparisons](results/plots/string_search_comparisons.png)
+The benchmark used a 2,000 ms stopping threshold. At \(n=12\), the median execution time exceeded this threshold, so the experiment stopped.
 
-**Observation:** This chart compares Naive Search and KMP on the worst-case search input using the recorded character comparison counter.
+The largest tested input was therefore 12. The stopping condition was execution time, not a stack overflow or incorrect result.
 
-Naive Search can repeatedly compare a long prefix before discovering a mismatch. KMP uses LPS information to avoid unnecessary repeated comparisons.
+**Plot takeaway:** Direct recursion becomes impractical quickly on different strings because the number of recursive calls grows exponentially.
 
-**Takeaway:** KMP is expected to perform better on repetitive worst-case inputs.
+![Recursive Time](results/plots/recursive_edit_distance_time.png)
 
-### 3.4 String Search Comparison Ratio
+![Recursive Calls](results/plots/recursive_edit_distance_calls.png)
 
-![String Search Ratio](results/plots/string_search_ratio.png)
+### 2.3 Naive vs KMP String Search
 
-**Observation:** The ratio compares the number of character comparisons performed by Naive Search with the number performed by KMP.
+The most significant difference appeared in the worst-case experiment.
 
-A ratio greater than 1 means Naive Search performed more character comparisons.
+| Text size | Naive comparisons | KMP comparisons | Naive/KMP ratio |
+|---:|---:|---:|---:|
+| 2,000 | 39,620 | 4,018 | 9.86 |
+| 4,000 | 158,440 | 8,038 | 19.71 |
+| 8,000 | 633,680 | 16,078 | 39.41 |
+| 16,000 | 2,534,560 | 32,158 | 78.82 |
 
-**Takeaway:** The ratio makes the difference between the two algorithms easier to evaluate as input size increases.
+At \(n=16,000\), Naive performed 2,534,560 comparisons, while KMP performed only 32,158.
 
-### 3.5 Recursive Edit Distance Execution Time
+The KMP total includes LPS preprocessing comparisons. Therefore, the comparison is not ignoring the preprocessing cost.
 
-![Recursive Edit Distance Time](results/plots/recursive_edit_distance_time.png)
+**Plot takeaway:** The comparison gap increases as the input grows, demonstrating the advantage of KMP on difficult search inputs.
 
-**Observation:** The recursive implementation becomes increasingly expensive on different strings as input size grows. In the recorded experiment, the execution time for the different input of size 10 was approximately 43.8168 ms.
+![Search Comparisons](results/plots/string_search_comparisons.png)
 
-For identical strings, the implementation can finish much faster because matching characters do not require exploring all three edit operations.
+![Search Ratio](results/plots/string_search_ratio.png)
 
-**Takeaway:** Direct recursion without memoization is unsuitable for large Edit Distance inputs.
+### 2.4 Fixed Pattern and Fixed Text Experiments
 
-### 3.6 Recursive Edit Distance Calls
+Additional experiments varied one input dimension while keeping the other fixed.
 
-![Recursive Edit Distance Calls](results/plots/recursive_edit_distance_calls.png)
+With a fixed pattern length of 40 and a growing text, both algorithms found exactly one match at every tested size.
 
-**Observation:** The number of recursive calls increases rapidly for different strings. This demonstrates the repeated exploration of overlapping subproblems.
+The total character comparisons were:
 
-**Takeaway:** The recursive call counter helps explain why the direct recursive implementation becomes slow.
+| Text size | Naive | KMP |
+|---:|---:|---:|
+| 2,000 | 2,002 | 2,041 |
+| 4,000 | 4,002 | 4,041 |
+| 8,000 | 8,002 | 8,041 |
+| 16,000 | 16,002 | 16,041 |
+
+In this particular experiment, Naive performed slightly fewer total comparisons because KMP also had to build its LPS array.
+
+With a fixed text length of 16,000 and a growing pattern, both algorithms found two matches for all tested pattern sizes. Their total character comparison counts were equal in the recorded experiments.
+
+**Plot takeaway:** These experiments show that input structure and preprocessing overhead matter; KMP does not necessarily win every small or favorable case.
+
+![Fixed Pattern](results/plots/fixed_pattern_comparisons.png)
+
+![Fixed Text](results/plots/fixed_text_comparisons.png)
+
+### 2.5 Overlapping Matches
+
+The overlapping-match experiment used a text consisting of repeated `A` characters and a pattern of 40 `A` characters.
+
+Both algorithms returned the expected number of matches:
+
+| Text size | Expected matches | Naive | KMP |
+|---:|---:|---:|---:|
+| 2,000 | 1,961 | 1,961 | 1,961 |
+| 4,000 | 3,961 | 3,961 | 3,961 |
+| 8,000 | 7,961 | 7,961 | 7,961 |
+| 16,000 | 15,961 | 15,961 | 15,961 |
+
+This confirms that both implementations correctly support overlapping matches.
 
 ---
 
-## 4. Analysis and Discussion
+## 3. Prediction vs Result
 
-### 4.1 Which string-search input was slowest, and why?
+| Prediction | Experimental result |
+|---|---|
+| Recursive implementation will grow very quickly on different strings. | Confirmed: it reached 377 million recursive calls at n=12. |
+| Table and TwoRows will have the same DP time complexity. | Confirmed: both processed 640,000 DP cells at n=800. |
+| TwoRows will use less memory. | Confirmed: 1,602 cells compared with 641,601 for Table at n=800. |
+| KMP will perform fewer comparisons on difficult inputs. | Confirmed: about 78.82 times fewer comparisons at n=16,000. |
+| Naive may be competitive on simple inputs. | Confirmed in the fixed-pattern experiment, where Naive performed slightly fewer comparisons. |
 
-The most challenging input for Naive Search is the `worst_case` input. The text contains repeated A characters, and the pattern contains mostly A characters followed by B.
+Overall, the predictions were mostly confirmed. The experiments also demonstrated that input structure and preprocessing costs affect practical performance.
 
-At many starting positions, the algorithm compares several characters successfully before finding a mismatch at the end of the pattern. It then moves to the next starting position and repeats many of the same comparisons.
+---
 
-KMP is designed to reduce this repeated work by using the LPS array.
+## 4. Required Questions
 
-### 4.2 What was the maximum input size handled by Recursive Edit Distance, and what stopped it?
+### 1. Which input makes string search slowest, and why?
 
-The largest recursive input size used in the experiment was 10.
+The worst-case input was the most difficult for Naive String Search. At text length 16,000 and pattern length 160, it performed 2,534,560 character comparisons.
 
-For different strings of length 10, the recorded execution time was approximately 43.8168 ms. The main limitation is the exponential growth of recursive calls without memoization.
+This happens because many alignments share long matching prefixes before a mismatch occurs. Naive repeats much of this work at the next alignment.
 
-The experiment used small inputs for Recursive Edit Distance because larger inputs can require a very large number of calls.
+KMP avoids many repeated comparisons by using its LPS array.
 
-### 4.3 What did Two Rows gain and lose compared with the full Table?
+### 2. What is the maximum n handled by recursive Edit Distance, and what stopped it?
 
-Two Rows preserves O(n × m) time complexity but reduces additional memory from O(n × m) to O(m), assuming the shorter string is used for the row dimension.
+The largest tested input was \(n=12\).
 
-For strings of length 800, the full table requires 641,601 cells, while Two Rows requires 1,602 cells.
+At this size, the algorithm made 377,393,953 recursive calls and had a median execution time of 2019.7967 ms. The benchmark stopped because its median time exceeded the configured 2,000 ms threshold.
 
-The main disadvantage is that Two Rows does not preserve the entire DP matrix. Therefore, it is not suitable when the application needs to reconstruct the complete sequence of edit operations directly from the table.
+### 3. What is gained and lost with TwoRows compared with the full table?
 
-### 4.4 Which search algorithm should a city search platform use?
+TwoRows reduces auxiliary storage from \(O(nm)\) to \(O(m)\), while retaining \(O(nm)\) time complexity.
 
-KMP is a suitable choice for searching patterns in long text because it provides O(n + m) time complexity and avoids repeated comparisons.
+The main advantage is lower memory usage. The limitation is that the two-row implementation does not preserve the complete DP table, so it cannot directly reconstruct the full edit sequence from all intermediate states.
 
-This is useful when users search for street names or other text in long logs. For example, a platform may need to find a street name even when the text contains repetitive character sequences.
+### 4. Which search algorithm would you choose for a city search platform?
 
-For a production spell-checking system, Edit Distance can additionally help identify similar names and possible spelling mistakes.
+I would choose KMP for the main city search implementation.
 
-### 4.5 Why is execution time not the only evidence?
+City names and street names can be searched repeatedly in large datasets. KMP avoids unnecessary repeated comparisons and provides linear search complexity after preprocessing.
 
-Execution time can be affected by JVM warm-up, garbage collection, operating system activity, and hardware differences.
+Naive can still be useful for small inputs or simple cases because it is easier to implement and has no LPS preprocessing overhead.
 
-Therefore, this project also records operation counters and memory usage. These metrics help explain why an algorithm performs differently, rather than showing only the final execution time.
+### 5. Why is execution time not the only evidence?
 
-Using a fixed random seed, warm-up, five measured runs, and median time makes the experiment more reproducible and reduces the influence of individual timing fluctuations.
+Execution time depends on several external factors, including JVM warm-up, garbage collection, CPU activity, and other running processes.
+
+For this reason, the project also measures operation counts, recursive calls, DP cells, and estimated auxiliary storage. These counters provide a more direct way to understand algorithmic behavior and compare implementations.
 
 ---
 
 ## 5. Conclusion
 
-This assignment demonstrates the practical differences between recursive and dynamic programming solutions, as well as between Naive Search and KMP.
+The experiments demonstrated the practical differences between recursive and dynamic programming approaches to Edit Distance, as well as between Naive and KMP String Search.
 
-The recursive Edit Distance implementation is useful for understanding the recurrence relation, but its exponential growth makes it unsuitable for larger inputs. The Table implementation provides a complete DP matrix, while Two Rows reduces memory usage without changing the asymptotic running time.
+The recursive Edit Distance implementation became impractical quickly on different strings. TwoRows significantly reduced auxiliary memory compared with the full DP table. KMP demonstrated a strong advantage over Naive in the worst-case search experiments, although preprocessing overhead made Naive competitive in some simpler cases.
 
-For string searching, KMP is more appropriate for long and repetitive text because it uses preprocessing information to avoid repeated comparisons.
+The results support choosing algorithms based on both theoretical complexity and actual input characteristics.
 
-The experiments combine execution time, operation counters, and memory measurements to provide a more complete algorithm comparison.
+**Note:** `memory_cells` represents an algorithmic estimate of auxiliary storage cells, not a direct measurement of JVM heap usage in bytes.

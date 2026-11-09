@@ -1,17 +1,15 @@
 # DAA Assignment 4 — Dynamic Programming and String Algorithms
 
-## Overview
+## Project Overview
 
-This project was developed for the Design and Analysis of Algorithms course.
+This project was developed for the **Design and Analysis of Algorithms (DAA)** course.
 
-The project implements and compares dynamic programming and string-searching algorithms for a City Search & Spell-Check system.
+The assignment explores two algorithmic problems related to a City Search & Spell-Check platform:
 
-The main goals are:
-- Implement multiple Edit Distance algorithms.
-- Compare Naive Search and Knuth-Morris-Pratt (KMP).
-- Measure execution time, operation counts, and memory usage.
-- Run reproducible experiments.
-- Analyze the results using CSV data and charts.
+1. **Edit Distance** — calculating the minimum number of operations required to transform one string into another.
+2. **String Search** — finding all occurrences of a pattern inside a text.
+
+The project implements multiple algorithms, compares their performance, measures operation counts and auxiliary storage, and visualizes experimental results.
 
 ## Technologies
 
@@ -20,29 +18,38 @@ The main goals are:
 - JUnit 5
 - Python 3
 - Matplotlib
+- Git
 
 ## Implemented Algorithms
 
 ### 1. Edit Distance
 
-The project contains three implementations:
+Three implementations calculate the Levenshtein distance between two strings.
 
-| Class | Description | Time complexity |
+| Algorithm | Approach | Time Complexity | Auxiliary Space |
+|---|---|---|---|
+| Recursive | Direct recursion without memoization | Exponential | Exponential recursion stack |
+| Table | Bottom-up dynamic programming with a full table | O(n × m) | O(n × m) |
+| TwoRows | Dynamic programming using two rows | O(n × m) | O(m) |
+
+The implementations use the same method signature:
+
+`int distance(String a, String b)`
+
+All implementations support empty strings and are tested against reference results.
+
+### 2. String Search
+
+Two algorithms find all occurrences of a pattern in a text, including overlapping matches.
+
+| Algorithm | Approach | Time Complexity |
 |---|---|---|
-| `RecursiveEditDistance` | Direct recursion without memoization | Exponential worst case |
-| `TableEditDistance` | Bottom-up dynamic programming using a 2D table | O(n × m) |
-| `TwoRowsEditDistance` | Dynamic programming using two rows | O(n × m) |
+| Naive | Checks possible alignments one by one | O(n × m) worst case |
+| KMP | Uses the Longest Proper Prefix which is also a Suffix (LPS) array | O(n + m) |
 
-The Two Rows implementation reduces additional memory usage from O(n × m) to O(m).
+The KMP implementation includes a public `lps(String p)` method for preprocessing the pattern.
 
-### 2. String Searching
-
-| Class | Description | Worst-case search complexity |
-|---|---|---|
-| `NaiveSearch` | Checks possible pattern positions one by one | O(n × m) |
-| `KMP` | Uses the LPS array to avoid repeated comparisons | O(n + m), including preprocessing |
-
-Both algorithms return all matching starting positions in increasing order and support overlapping matches.
+Both algorithms return matching starting indices in increasing order.
 
 An empty pattern is rejected with `IllegalArgumentException`.
 
@@ -50,166 +57,198 @@ An empty pattern is rejected with `IllegalArgumentException`.
 
 ```text
 DAA4/
+│
 ├── src/
 │   ├── main/
 │   │   └── java/
 │   │       └── com/
 │   │           └── daa/
+│   │               ├── Main.java
 │   │               ├── editdistance/
-│   │               │   ├── EditDistance.java
-│   │               │   ├── RecursiveEditDistance.java
-│   │               │   ├── TableEditDistance.java
-│   │               │   └── TwoRowsEditDistance.java
 │   │               ├── search/
-│   │               │   ├── StringSearch.java
-│   │               │   ├── NaiveSearch.java
-│   │               │   └── KMP.java
 │   │               ├── metrics/
-│   │               │   └── Metrics.java
-│   │               ├── experiment/
-│   │               │   ├── Benchmark.java
-│   │               │   └── DataGenerator.java
-│   │               └── Main.java
+│   │               └── experiment/
+│   │
 │   └── test/
 │       └── java/
 │           └── com/
 │               └── daa/
-│
-├── scripts/
-│   └── plot_results.py
 │
 ├── results/
 │   ├── results.csv
 │   └── plots/
 │       ├── edit_distance_time.png
 │       ├── edit_distance_memory.png
+│       ├── recursive_edit_distance_time.png
+│       ├── recursive_edit_distance_calls.png
 │       ├── string_search_comparisons.png
 │       ├── string_search_ratio.png
-│       ├── recursive_edit_distance_time.png
-│       └── recursive_edit_distance_calls.png
+│       ├── fixed_pattern_comparisons.png
+│       └── fixed_text_comparisons.png
 │
-├── pom.xml
+├── scripts/
+│   └── plot_results.py
+│
 ├── README.md
-└── REPORT.md
+├── REPORT.md
+└── pom.xml
 ```
 
 ## Experimental Design
 
-The experiments use a fixed random seed (`42`) to make generated input data reproducible.
+The benchmark uses a fixed random seed (`42`) to make generated inputs reproducible.
 
-Each experiment includes:
-- One warm-up run.
-- Five measured runs.
-- Median execution time.
-- Algorithm-specific operation counters.
-- Multiple input sizes.
-- Different input types, including best-case and worst-case scenarios.
+### Input sizes
 
-### Edit Distance input sizes
-
-| Implementation | Input sizes |
+| Experiment | Input sizes |
 |---|---|
-| Recursive | 2, 4, 6, 8, 10 |
-| Table | 100, 200, 400, 800 |
-| Two Rows | 100, 200, 400, 800 |
+| Recursive Edit Distance | 2, 4, 6, 8, 10, 12 |
+| Table and TwoRows | 100, 200, 400, 800 |
+| String Search text | 2,000, 4,000, 8,000, 16,000 |
+| String Search pattern | 20, 40, 80, 160 |
 
-Input types: `identical`, `different`, and `random` where applicable.
+### Input types
 
-### String Searching input sizes
+**Edit Distance:**
+- Identical strings
+- Different strings
+- Random strings
 
-| Text size | Pattern size |
-|---:|---:|
-| 2,000 | 20 |
-| 4,000 | 40 |
-| 8,000 | 80 |
-| 16,000 | 160 |
+**String Search:**
+- Best-case input
+- Worst-case input
+- Random input
+- Fixed pattern with growing text
+- Fixed text with growing pattern
+- Overlapping matches
 
-Input types:
-- `best_case`
-- `worst_case`
-- `random`
+### Metrics
 
-## Collected Metrics
+The benchmark collects:
 
-### Edit Distance
-- `recursiveCalls`
-- `dpCells`
-- `charComparisons`
-- `maxDepth`
-- `memoryCells`
+- Median execution time in milliseconds
+- Recursive calls
+- Dynamic programming cells
+- Character comparisons
+- Maximum recursion depth
+- Estimated auxiliary storage cells
+- Text comparisons
+- LPS preprocessing comparisons
+- Number of matches returned
 
-### String Searching
-- `charComparisons`
-- `textComparisons`
-- `lpsComparisons`
-- `alignmentsTried`
-- `fallbacks`
+Each experiment uses five measured runs. The median is used to reduce the effect of timing fluctuations.
 
-Execution time is measured in milliseconds.
+**Note:** Auxiliary storage is estimated in algorithmic cells. It is not a direct measurement of JVM heap memory in bytes.
 
-## How to Run
+## Experimental Results
 
-### Requirements
+The benchmark generated:
+
+- 84 unique experiment configurations
+- 5 measured runs per configuration
+- 420 CSV data rows
+
+The CSV file is located at:
+
+`results/results.csv`
+
+The generated plots are located in:
+
+`results/plots/`
+
+The experiments demonstrate that:
+
+- Recursive Edit Distance becomes impractical quickly for different strings.
+- TwoRows substantially reduces auxiliary storage compared with the full DP table.
+- KMP performs significantly fewer character comparisons than Naive in difficult search cases.
+- Naive can remain competitive on simple inputs because it does not require LPS preprocessing.
+- Both search algorithms correctly support overlapping matches.
+
+For detailed measurements, charts, predictions, and conclusions, see [REPORT.md](REPORT.md).
+
+## How to Run the Project
+
+### 1. Requirements
 
 Install:
-- JDK 17 or newer.
-- Maven.
-- Python 3.
-- Matplotlib.
 
-### 1. Run unit tests
+- JDK 17 or newer
+- Maven
+- Python 3
+- Matplotlib
 
-From the project root:
-
-```bash
-mvn clean test
-```
-
-### 2. Run benchmarks
-
-Run `com.daa.Main` from the project root directory.
-
-The benchmark results will be saved to:
-
-```text
-results/results.csv
-```
-
-### 3. Generate charts
-
-Install Matplotlib if it is not already installed:
+Install Matplotlib:
 
 ```bash
 python -m pip install matplotlib
 ```
 
-Run the plotting script:
+### 2. Run Unit Tests
+
+From the project root directory:
+
+```bash
+mvn clean test
+```
+
+This compiles the project and executes the JUnit tests.
+
+### 3. Run the Benchmark
+
+Run the `com.daa.Main` class from IntelliJ IDEA or another Java IDE.
+
+The benchmark executes the experiments and saves the collected data to:
+
+```text
+results/results.csv
+```
+
+Run the program with the project root as its working directory so that the relative output path is correct.
+
+### 4. Generate Plots
+
+After the benchmark has finished, run:
 
 ```bash
 python scripts/plot_results.py
 ```
 
-The generated charts will be saved to:
+Alternatively, on Windows:
 
-```text
-results/plots/
+```bash
+py scripts/plot_results.py
 ```
 
-## Results and Report
-
-- `results/results.csv` contains the benchmark measurements.
-- `results/plots/` contains generated charts.
-- `REPORT.md` contains the experimental design, observations, analysis, and conclusions.
+The script reads `results/results.csv` and generates eight PNG charts in `results/plots/`.
 
 ## Testing
 
 JUnit tests cover:
-- Reference Edit Distance values.
-- Empty-string cases.
-- Agreement between the three Edit Distance implementations on random short strings.
-- Reference LPS arrays.
-- String-search reference cases.
-- Overlapping matches.
-- Agreement between Naive Search and KMP on random inputs.
-- Empty-pattern exception handling.
-- Patterns longer than the text.
+
+- Reference Edit Distance values
+- Empty-string cases
+- Agreement between all three Edit Distance implementations
+- Random short-string comparisons
+- Reference LPS arrays
+- Reference String Search results
+- Overlapping matches
+- Random text comparisons between Naive and KMP
+- Empty-pattern exception handling
+- Pattern longer than text
+
+## How to Interpret the Results
+
+Execution time alone is not sufficient to compare algorithms because JVM warm-up, garbage collection, CPU activity, and other system processes can influence timing.
+
+Operation counters and auxiliary storage estimates provide additional evidence about algorithmic behavior.
+
+The report discusses both theoretical complexity and measured performance.
+
+## Author
+
+**Course:** Design and Analysis of Algorithms  
+**Assignment:** 4 — Dynamic Programming and String Algorithms
+**Name:** Angsar Baibossinov
+## AI Assistance Acknowledgement
+
+AI assistance was used to support project development, debugging, documentation, and explanation of algorithmic concepts.

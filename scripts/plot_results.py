@@ -1,340 +1,448 @@
+
 import csv
+import math
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 
 
-# -------------------------------------------------
-# PROJECT PATHS
-# -------------------------------------------------
+# --------------------------------------------------
+# Paths
+# --------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 CSV_PATH = BASE_DIR / "results" / "results.csv"
 PLOTS_DIR = BASE_DIR / "results" / "plots"
 
-PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
-print("Project directory:", BASE_DIR)
-print("CSV file:", CSV_PATH)
+# --------------------------------------------------
+# Load CSV
+# --------------------------------------------------
 
+def load_results():
+    if not CSV_PATH.exists():
+        raise FileNotFoundError(
+            f"CSV file not found: {CSV_PATH}"
+        )
 
-# -------------------------------------------------
-# READ CSV
-# -------------------------------------------------
+    experiments = {}
 
-if not CSV_PATH.exists():
-    raise FileNotFoundError(
-        f"Cannot find results.csv: {CSV_PATH}. "
-        "Run the Java Benchmark first."
-    )
+    with open(CSV_PATH, "r", newline="", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
 
-with CSV_PATH.open("r", newline="", encoding="utf-8") as file:
-    rows = list(csv.DictReader(file))
+        for row in reader:
+            key = (
+                row["algorithm"],
+                row["input"],
+                int(row["n"]),
+                int(row["m"])
+            )
 
+            # Each experiment has 5 runs.
+            # median_time_ms and counters are the same
+            # for all rows of one experiment.
+            if key not in experiments:
+                experiments[key] = {
+                    "algorithm": row["algorithm"],
+                    "input": row["input"],
+                    "n": int(row["n"]),
+                    "m": int(row["m"]),
+                    "time_ms": float(row["median_time_ms"]),
+                    "char_comparisons": int(row["char_comparisons"]),
+                    "memory_cells": int(row["memory_cells"]),
+                    "recursive_calls": int(row["recursive_calls"]),
+                    "result": int(row["result"])
+                }
 
-# Keep one row for each experiment.
-# Median time is identical in all five run rows.
-experiments = {}
-
-for row in rows:
-    key = (
-        row["algorithm"],
-        row["input"],
-        int(row["n"]),
-        int(row["m"])
-    )
-
-    if key not in experiments:
-        experiments[key] = row
-
-
-def get_experiments(algorithm, input_type):
-    result = []
-
-    for row in experiments.values():
-        if (
-                row["algorithm"] == algorithm
-                and row["input"] == input_type
-        ):
-            result.append(row)
-
-    return sorted(result, key=lambda item: int(item["n"]))
+    return list(experiments.values())
 
 
-# -------------------------------------------------
-# AXIS CONFIGURATION
-# -------------------------------------------------
+# --------------------------------------------------
+# Helpers
+# --------------------------------------------------
 
-def configure_axes(ax, sizes):
-    # Input sizes grow geometrically where applicable.
-    ax.set_xscale("log", base=2)
+def get_experiments(data, algorithm, input_type, sort_by="n"):
+    selected = [
+        item for item in data
+        if item["algorithm"] == algorithm
+           and item["input"] == input_type
+    ]
 
-    # Logarithmic Y-axis makes differences across
-    # several orders of magnitude easier to compare.
-    ax.set_yscale("log")
+    return sorted(selected, key=lambda item: item[sort_by])
 
-    # Show the actual input sizes as tick labels.
-    ax.set_xticks(sizes)
-    ax.set_xticklabels([str(size) for size in sizes])
 
-    ax.grid(True, which="both", linestyle="--", alpha=0.6)
+def require_data(items, description):
+    if not items:
+        raise ValueError(
+            f"No data found for: {description}. "
+            "Check the algorithm and input names in results.csv."
+        )
 
 
 def save_plot(filename):
+    output_path = PLOTS_DIR / filename
     plt.tight_layout()
-    output = PLOTS_DIR / filename
-    plt.savefig(output, dpi=300)
+    plt.savefig(output_path, dpi=200)
     plt.close()
+    print(f"Saved: {output_path}")
 
-    print("Saved:", output)
+
+def prepare_plot(title, x_label, y_label):
+    plt.figure(figsize=(9, 5))
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.grid(True, which="both", linestyle="--", alpha=0.5)
 
 
-# -------------------------------------------------
-# PLOT 1: EDIT DISTANCE EXECUTION TIME
-# -------------------------------------------------
+# --------------------------------------------------
+# Plot 1: Edit Distance execution time
+# --------------------------------------------------
 
-plt.figure(figsize=(9, 5))
-ax = plt.gca()
+def plot_edit_distance_time(data):
+    table = get_experiments(data, "Table", "different")
+    two_rows = get_experiments(data, "TwoRows", "different")
 
-all_sizes = []
+    require_data(table, "Table / different")
+    require_data(two_rows, "TwoRows / different")
 
-for algorithm in ["Table", "TwoRows"]:
-    data = get_experiments(algorithm, "different")
-
-    sizes = [int(row["n"]) for row in data]
-    times = [float(row["median_time_ms"]) for row in data]
-
-    all_sizes.extend(sizes)
-
-    ax.plot(
-        sizes,
-        times,
-        marker="o",
-        linewidth=2,
-        label=algorithm
+    prepare_plot(
+        "Edit Distance: Execution Time",
+        "String length (n)",
+        "Median execution time (ms)"
     )
 
-ax.set_title("Edit Distance: Execution Time")
-ax.set_xlabel("String length (characters)")
-ax.set_ylabel("Median execution time (ms)")
-
-configure_axes(ax, sorted(set(all_sizes)))
-ax.legend()
-
-save_plot("edit_distance_time.png")
-
-
-# -------------------------------------------------
-# PLOT 2: EDIT DISTANCE MEMORY USAGE
-# -------------------------------------------------
-
-plt.figure(figsize=(9, 5))
-ax = plt.gca()
-
-all_sizes = []
-
-for algorithm in ["Table", "TwoRows"]:
-    data = get_experiments(algorithm, "different")
-
-    sizes = [int(row["n"]) for row in data]
-    memory = [int(row["memory_cells"]) for row in data]
-
-    all_sizes.extend(sizes)
-
-    ax.plot(
-        sizes,
-        memory,
+    plt.plot(
+        [x["n"] for x in table],
+        [x["time_ms"] for x in table],
         marker="o",
-        linewidth=2,
-        label=algorithm
+        label="Table"
     )
 
-ax.set_title("Edit Distance: Additional Memory")
-ax.set_xlabel("String length (characters)")
-ax.set_ylabel("Additional memory (cells)")
+    plt.plot(
+        [x["n"] for x in two_rows],
+        [x["time_ms"] for x in two_rows],
+        marker="s",
+        label="Two Rows"
+    )
 
-configure_axes(ax, sorted(set(all_sizes)))
-ax.legend()
+    plt.xscale("log", base=2)
+    plt.yscale("log")
+    plt.legend()
 
-save_plot("edit_distance_memory.png")
+    save_plot("edit_distance_time.png")
 
 
-# -------------------------------------------------
-# PLOT 3: STRING SEARCH COMPARISONS
-# -------------------------------------------------
+# --------------------------------------------------
+# Plot 2: Edit Distance auxiliary storage
+# --------------------------------------------------
 
-plt.figure(figsize=(9, 5))
-ax = plt.gca()
+def plot_edit_distance_memory(data):
+    table = get_experiments(data, "Table", "different")
+    two_rows = get_experiments(data, "TwoRows", "different")
 
-all_sizes = []
+    require_data(table, "Table memory")
+    require_data(two_rows, "TwoRows memory")
 
-for algorithm in ["Naive", "KMP"]:
-    data = get_experiments(algorithm, "worst_case")
+    prepare_plot(
+        "Edit Distance: Auxiliary Storage",
+        "String length (n)",
+        "Estimated auxiliary storage (cells)"
+    )
 
-    sizes = [int(row["n"]) for row in data]
+    plt.plot(
+        [x["n"] for x in table],
+        [x["memory_cells"] for x in table],
+        marker="o",
+        label="Table"
+    )
 
-    # char_comparisons includes:
-    # - text comparisons
-    # - LPS comparisons for KMP
-    comparisons = [
-        int(row["char_comparisons"])
-        for row in data
+    plt.plot(
+        [x["n"] for x in two_rows],
+        [x["memory_cells"] for x in two_rows],
+        marker="s",
+        label="Two Rows"
+    )
+
+    plt.xscale("log", base=2)
+    plt.yscale("log")
+    plt.legend()
+
+    save_plot("edit_distance_memory.png")
+
+
+# --------------------------------------------------
+# Plot 3: Recursive Edit Distance execution time
+# --------------------------------------------------
+
+def plot_recursive_time(data):
+    identical = get_experiments(data, "Recursive", "identical")
+    different = get_experiments(data, "Recursive", "different")
+
+    require_data(identical, "Recursive / identical")
+    require_data(different, "Recursive / different")
+
+    prepare_plot(
+        "Recursive Edit Distance: Execution Time",
+        "String length (n)",
+        "Median execution time (ms)"
+    )
+
+    plt.plot(
+        [x["n"] for x in identical],
+        [x["time_ms"] for x in identical],
+        marker="o",
+        label="Identical strings"
+    )
+
+    plt.plot(
+        [x["n"] for x in different],
+        [x["time_ms"] for x in different],
+        marker="s",
+        label="Different strings"
+    )
+
+    plt.yscale("log")
+    plt.legend()
+
+    save_plot("recursive_edit_distance_time.png")
+
+
+# --------------------------------------------------
+# Plot 4: Recursive calls
+# --------------------------------------------------
+
+def plot_recursive_calls(data):
+    identical = get_experiments(data, "Recursive", "identical")
+    different = get_experiments(data, "Recursive", "different")
+
+    require_data(identical, "Recursive calls / identical")
+    require_data(different, "Recursive calls / different")
+
+    prepare_plot(
+        "Recursive Edit Distance: Number of Calls",
+        "String length (n)",
+        "Recursive calls"
+    )
+
+    plt.plot(
+        [x["n"] for x in identical],
+        [x["recursive_calls"] for x in identical],
+        marker="o",
+        label="Identical strings"
+    )
+
+    plt.plot(
+        [x["n"] for x in different],
+        [x["recursive_calls"] for x in different],
+        marker="s",
+        label="Different strings"
+    )
+
+    plt.yscale("log")
+    plt.legend()
+
+    save_plot("recursive_edit_distance_calls.png")
+
+
+# --------------------------------------------------
+# Plot 5: String Search character comparisons
+# --------------------------------------------------
+
+def plot_search_comparisons(data):
+    naive = get_experiments(data, "Naive", "worst_case")
+    kmp = get_experiments(data, "KMP", "worst_case")
+
+    require_data(naive, "Naive / worst_case")
+    require_data(kmp, "KMP / worst_case")
+
+    prepare_plot(
+        "String Search: Character Comparisons",
+        "Text length (n)",
+        "Character comparisons"
+    )
+
+    plt.plot(
+        [x["n"] for x in naive],
+        [x["char_comparisons"] for x in naive],
+        marker="o",
+        label="Naive"
+    )
+
+    plt.plot(
+        [x["n"] for x in kmp],
+        [x["char_comparisons"] for x in kmp],
+        marker="s",
+        label="KMP"
+    )
+
+    plt.xscale("log", base=2)
+    plt.yscale("log")
+    plt.legend()
+
+    save_plot("string_search_comparisons.png")
+
+
+# --------------------------------------------------
+# Plot 6: Naive / KMP comparison ratio
+# --------------------------------------------------
+
+def plot_search_ratio(data):
+    naive = get_experiments(data, "Naive", "worst_case")
+    kmp = get_experiments(data, "KMP", "worst_case")
+
+    require_data(naive, "Naive ratio")
+    require_data(kmp, "KMP ratio")
+
+    naive_by_size = {x["n"]: x for x in naive}
+    kmp_by_size = {x["n"]: x for x in kmp}
+
+    sizes = sorted(set(naive_by_size) & set(kmp_by_size))
+
+    ratios = []
+
+    for size in sizes:
+        naive_count = naive_by_size[size]["char_comparisons"]
+        kmp_count = kmp_by_size[size]["char_comparisons"]
+
+        if kmp_count == 0:
+            continue
+
+        ratios.append(naive_count / kmp_count)
+
+    sizes = [
+        size for size in sizes
+        if kmp_by_size[size]["char_comparisons"] != 0
     ]
 
-    all_sizes.extend(sizes)
+    if not ratios:
+        raise ValueError("Cannot calculate Naive / KMP comparison ratio.")
 
-    ax.plot(
-        sizes,
-        comparisons,
-        marker="o",
-        linewidth=2,
-        label=algorithm
+    prepare_plot(
+        "String Search: Naive / KMP Comparison Ratio",
+        "Text length (n)",
+        "Naive comparisons / KMP comparisons"
     )
 
-ax.set_title("String Search: Total Character Comparisons")
-ax.set_xlabel("Text length (characters)")
-ax.set_ylabel("Total character comparisons")
+    plt.plot(sizes, ratios, marker="o", label="Comparison ratio")
+    plt.axhline(y=1, linestyle="--", label="Equal number of comparisons")
 
-configure_axes(ax, sorted(set(all_sizes)))
-ax.legend()
+    plt.xscale("log", base=2)
+    plt.yscale("log")
+    plt.legend()
 
-save_plot("string_search_comparisons.png")
-
-
-# -------------------------------------------------
-# PLOT 4: NAIVE / KMP COMPARISON RATIO
-# -------------------------------------------------
-
-naive_data = get_experiments("Naive", "worst_case")
-kmp_data = get_experiments("KMP", "worst_case")
-
-naive_by_size = {
-    int(row["n"]): int(row["char_comparisons"])
-    for row in naive_data
-}
-
-kmp_by_size = {
-    int(row["n"]): int(row["char_comparisons"])
-    for row in kmp_data
-}
-
-sizes = sorted(set(naive_by_size) & set(kmp_by_size))
-
-ratios = [
-    naive_by_size[size] / kmp_by_size[size]
-    for size in sizes
-    if kmp_by_size[size] > 0
-]
-
-ratio_sizes = [
-    size for size in sizes
-    if kmp_by_size[size] > 0
-]
-
-plt.figure(figsize=(9, 5))
-ax = plt.gca()
-
-ax.plot(
-    ratio_sizes,
-    ratios,
-    marker="o",
-    linewidth=2,
-    label="Naive / KMP"
-)
-
-ax.set_title("String Search: Comparison Ratio (Worst Case)")
-ax.set_xlabel("Text length (characters)")
-ax.set_ylabel("Naive / KMP comparison ratio")
-
-configure_axes(ax, ratio_sizes)
-ax.legend()
-
-save_plot("string_search_ratio.png")
+    save_plot("string_search_ratio.png")
 
 
-# -------------------------------------------------
-# PLOT 5: RECURSIVE EDIT DISTANCE EXECUTION TIME
-# -------------------------------------------------
+# --------------------------------------------------
+# Plot 7: Fixed pattern, growing text
+# --------------------------------------------------
 
-plt.figure(figsize=(9, 5))
-ax = plt.gca()
+def plot_fixed_pattern(data):
+    naive = get_experiments(data, "Naive", "fixed_m_single_match")
+    kmp = get_experiments(data, "KMP", "fixed_m_single_match")
 
-all_sizes = []
+    require_data(naive, "Naive / fixed_m_single_match")
+    require_data(kmp, "KMP / fixed_m_single_match")
 
-for input_type in ["identical", "different"]:
-    data = get_experiments("Recursive", input_type)
+    naive.sort(key=lambda x: x["n"])
+    kmp.sort(key=lambda x: x["n"])
 
-    sizes = [int(row["n"]) for row in data]
-    times = [float(row["median_time_ms"]) for row in data]
-
-    all_sizes.extend(sizes)
-
-    ax.plot(
-        sizes,
-        times,
-        marker="o",
-        linewidth=2,
-        label=input_type
+    prepare_plot(
+        "String Search: Fixed Pattern, Growing Text",
+        "Text length (n), pattern length (m) = 40",
+        "Character comparisons"
     )
 
-ax.set_title("Recursive Edit Distance: Execution Time")
-ax.set_xlabel("String length (characters)")
-ax.set_ylabel("Median execution time (ms)")
-
-configure_axes(ax, sorted(set(all_sizes)))
-ax.legend()
-
-save_plot("recursive_edit_distance_time.png")
-
-
-# -------------------------------------------------
-# PLOT 6: RECURSIVE CALLS
-# -------------------------------------------------
-
-plt.figure(figsize=(9, 5))
-ax = plt.gca()
-
-all_sizes = []
-
-for input_type in ["identical", "different"]:
-    data = get_experiments("Recursive", input_type)
-
-    sizes = [int(row["n"]) for row in data]
-
-    calls = [
-        int(row["recursive_calls"])
-        for row in data
-    ]
-
-    all_sizes.extend(sizes)
-
-    ax.plot(
-        sizes,
-        calls,
+    plt.plot(
+        [x["n"] for x in naive],
+        [x["char_comparisons"] for x in naive],
         marker="o",
-        linewidth=2,
-        label=input_type
+        label="Naive"
     )
 
-ax.set_title("Recursive Edit Distance: Recursive Calls")
-ax.set_xlabel("String length (characters)")
-ax.set_ylabel("Number of recursive calls")
+    plt.plot(
+        [x["n"] for x in kmp],
+        [x["char_comparisons"] for x in kmp],
+        marker="s",
+        label="KMP"
+    )
 
-configure_axes(ax, sorted(set(all_sizes)))
-ax.legend()
+    plt.xscale("log", base=2)
+    plt.yscale("log")
+    plt.legend()
 
-save_plot("recursive_edit_distance_calls.png")
+    save_plot("fixed_pattern_comparisons.png")
 
 
-# -------------------------------------------------
-# FINISHED
-# -------------------------------------------------
+# --------------------------------------------------
+# Plot 8: Fixed text, growing pattern
+# --------------------------------------------------
 
-print()
-print("All plots were generated successfully!")
-print("Total experiments:", len(experiments))
-print("Generated plots:")
+def plot_fixed_text(data):
+    naive = get_experiments(data, "Naive", "fixed_n_two_matches", sort_by="m")
+    kmp = get_experiments(data, "KMP", "fixed_n_two_matches", sort_by="m")
 
-for path in sorted(PLOTS_DIR.glob("*.png")):
-    print(path.name)
+    require_data(naive, "Naive / fixed_n_two_matches")
+    require_data(kmp, "KMP / fixed_n_two_matches")
+
+    naive.sort(key=lambda x: x["m"])
+    kmp.sort(key=lambda x: x["m"])
+
+    prepare_plot(
+        "String Search: Fixed Text, Growing Pattern",
+        "Pattern length (m), text length (n) = 16000",
+        "Character comparisons"
+    )
+
+    plt.plot(
+        [x["m"] for x in naive],
+        [x["char_comparisons"] for x in naive],
+        marker="o",
+        label="Naive"
+    )
+
+    plt.plot(
+        [x["m"] for x in kmp],
+        [x["char_comparisons"] for x in kmp],
+        marker="s",
+        label="KMP"
+    )
+
+    plt.xscale("log", base=2)
+    plt.yscale("log")
+    plt.legend()
+
+    save_plot("fixed_text_comparisons.png")
+
+
+# --------------------------------------------------
+# Main
+# --------------------------------------------------
+
+def main():
+    PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Remove previous generated plots so the folder
+    # contains only charts from the current CSV.
+    for old_plot in PLOTS_DIR.glob("*.png"):
+        old_plot.unlink()
+
+    data = load_results()
+
+    print(f"Loaded {len(data)} unique experiments from CSV.")
+
+    plot_edit_distance_time(data)
+    plot_edit_distance_memory(data)
+    plot_recursive_time(data)
+    plot_recursive_calls(data)
+    plot_search_comparisons(data)
+    plot_search_ratio(data)
+    plot_fixed_pattern(data)
+    plot_fixed_text(data)
+
+    print("\nAll 8 plots have been generated successfully.")
+
+
+if __name__ == "__main__":
+    main()

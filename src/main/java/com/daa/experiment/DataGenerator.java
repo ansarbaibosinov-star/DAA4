@@ -1,4 +1,6 @@
+
 package com.daa.experiment;
+
 import java.util.Random;
 
 public class DataGenerator {
@@ -13,6 +15,9 @@ public class DataGenerator {
 
     // Generates a random string using uppercase English letters.
     public String randomString(int length) {
+        if (length < 0) {
+            throw new IllegalArgumentException("Length cannot be negative");
+        }
 
         StringBuilder result = new StringBuilder(length);
 
@@ -26,6 +31,10 @@ public class DataGenerator {
 
     // Generates a string containing one repeated character.
     public String repeatedString(int length, char character) {
+        if (length < 0) {
+            throw new IllegalArgumentException("Length cannot be negative");
+        }
+
         return String.valueOf(character).repeat(length);
     }
 
@@ -44,7 +53,6 @@ public class DataGenerator {
     }
 
     public String worstCasePattern(int length) {
-
         if (length < 2) {
             throw new IllegalArgumentException(
                     "Pattern length must be at least 2"
@@ -62,5 +70,71 @@ public class DataGenerator {
     // Generates different strings for Edit Distance.
     public String differentString(int length) {
         return repeatedString(length, 'B');
+    }
+
+    // Generates text containing one occurrence of the pattern.
+    public String textWithMatch(int textLength, String pattern) {
+        if (textLength < 0 || pattern == null) {
+            throw new IllegalArgumentException("Invalid input");
+        }
+
+        if (pattern.length() > textLength) {
+            throw new IllegalArgumentException(
+                    "Pattern cannot be longer than text"
+            );
+        }
+
+        StringBuilder text = new StringBuilder(
+                repeatedString(textLength, '#')
+        );
+
+        int position = (textLength - pattern.length()) / 2;
+
+        text.replace(
+                position,
+                position + pattern.length(),
+                pattern
+        );
+
+        return text.toString();
+    }
+
+    // Generates text containing several occurrences of the pattern.
+    public String textWithMultipleMatches(
+            int textLength,
+            String pattern
+    ) {
+        if (textLength < 0 || pattern == null || pattern.isEmpty()) {
+            throw new IllegalArgumentException("Invalid input");
+        }
+
+        if (pattern.length() > textLength) {
+            throw new IllegalArgumentException(
+                    "Pattern cannot be longer than text"
+            );
+        }
+
+        StringBuilder text = new StringBuilder(
+                repeatedString(textLength, '#')
+        );
+
+        int firstPosition = 0;
+        int lastPosition = textLength - pattern.length();
+
+        text.replace(
+                firstPosition,
+                firstPosition + pattern.length(),
+                pattern
+        );
+
+        if (lastPosition != firstPosition) {
+            text.replace(
+                    lastPosition,
+                    lastPosition + pattern.length(),
+                    pattern
+            );
+        }
+
+        return text.toString();
     }
 }

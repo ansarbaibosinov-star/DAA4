@@ -21,12 +21,14 @@ public class Benchmark {
 
     private static final int REPEATS = 5;
 
+    private static final double RECURSIVE_TIME_LIMIT_MS = 2000.0;
+
     private static final int[] DP_SIZES = {
             100, 200, 400, 800
     };
 
     private static final int[] RECURSIVE_SIZES = {
-            2, 4, 6, 8, 10
+            2, 4, 6, 8, 10, 12, 14
     };
 
     private static final int[] TEXT_SIZES = {
@@ -36,6 +38,9 @@ public class Benchmark {
     private static final int[] PATTERN_SIZES = {
             20, 40, 80, 160
     };
+
+    private static final int FIXED_PATTERN_SIZE = 40;
+    private static final int FIXED_TEXT_SIZE = 16000;
 
     private final DataGenerator generator = new DataGenerator();
 
@@ -78,6 +83,7 @@ public class Benchmark {
         System.out.println();
         System.out.println("Benchmark completed!");
         System.out.println("Results saved to results/results.csv");
+        System.out.println("Total CSV data rows: " + csvRows.size());
     }
 
     // -------------------------------------------------
@@ -88,7 +94,8 @@ public class Benchmark {
 
         System.out.println("Starting Edit Distance experiments...");
 
-        // Recursive algorithm uses smaller input sizes.
+        // Recursive algorithm uses progressively larger inputs.
+        // Stop when the different-input median reaches 2 seconds.
         for (int size : RECURSIVE_SIZES) {
 
             runEditCase(
@@ -100,7 +107,7 @@ public class Benchmark {
                             new RecursiveEditDistance(metrics).distance(a, b)
             );
 
-            runEditCase(
+            double differentMedian = runEditCase(
                     "Recursive",
                     "different",
                     generator.differentString(size),
@@ -108,6 +115,16 @@ public class Benchmark {
                     (metrics, a, b) ->
                             new RecursiveEditDistance(metrics).distance(a, b)
             );
+
+            if (differentMedian >= RECURSIVE_TIME_LIMIT_MS) {
+                System.out.printf(
+                        "Recursive benchmark stopped at n=%d: "
+                                + "median reached %.2f ms.%n",
+                        size,
+                        differentMedian
+                );
+                break;
+            }
         }
 
         // Table and Two Rows use larger input sizes.
@@ -163,7 +180,7 @@ public class Benchmark {
         }
     }
 
-    private void runEditCase(
+    private double runEditCase(
             String algorithm,
             String input,
             String a,
@@ -171,7 +188,7 @@ public class Benchmark {
             EditRunner runner
     ) {
 
-        // Warm-up run. Its result is not included in measurements.
+        // Warm-up run.
         runner.run(new Metrics(), a, b);
 
         List<RunResult> runs = new ArrayList<>();
@@ -220,12 +237,14 @@ public class Benchmark {
         );
 
         System.out.printf(
-                "Edit Distance: %-10s %-10s n=%d median=%.4f ms%n",
+                "Edit Distance: %-10s %-12s n=%d median=%.4f ms%n",
                 algorithm,
                 input,
                 a.length(),
                 median
         );
+
+        return median;
     }
 
     // -------------------------------------------------
@@ -242,6 +261,9 @@ public class Benchmark {
                 "KMP"
         };
 
+        // Experiment A:
+        // Original best, worst and random input types.
+        // Both n and m grow in this series.
         for (int i = 0; i < TEXT_SIZES.length; i++) {
 
             int textSize = TEXT_SIZES[i];
@@ -258,20 +280,7 @@ public class Benchmark {
 
             for (String algorithm : algorithms) {
 
-                SearchRunner runner;
-
-                if (algorithm.equals("Naive")) {
-
-                    runner = (metrics, text, pattern) ->
-                            new NaiveSearch(metrics)
-                                    .search(text, pattern).size();
-
-                } else {
-
-                    runner = (metrics, text, pattern) ->
-                            new KMP(metrics)
-                                    .search(text, pattern).size();
-                }
+                SearchRunner runner = createSearchRunner(algorithm);
 
                 runSearchCase(
                         algorithm,
@@ -298,6 +307,110 @@ public class Benchmark {
                 );
             }
         }
+
+        // Experiment B:
+        // Fixed pattern size, increasing text size.
+        // Exactly one occurrence is inserted into the text.
+        System.out.println();
+        System.out.println("Fixed pattern experiment: m = "
+                + FIXED_PATTERN_SIZE);
+
+        String fixedPattern =
+                generator.randomString(FIXED_PATTERN_SIZE);
+
+        for (int textSize : TEXT_SIZES) {
+
+            String text = generator.textWithMatch(
+                    textSize,
+                    fixedPattern
+            );
+
+            for (String algorithm : algorithms) {
+
+                runSearchCase(
+                        algorithm,
+                        "fixed_m_single_match",
+                        text,
+                        fixedPattern,
+                        createSearchRunner(algorithm)
+                );
+            }
+        }
+
+        // Experiment C:
+        // Fixed text size, increasing pattern size.
+        // Two occurrences are inserted into the text.
+        System.out.println();
+        System.out.println("Fixed text experiment: n = "
+                + FIXED_TEXT_SIZE);
+
+        for (int patternSize : PATTERN_SIZES) {
+
+            String pattern = generator.randomString(patternSize);
+
+            String text = generator.textWithMultipleMatches(
+                    FIXED_TEXT_SIZE,
+                    pattern
+            );
+
+            for (String algorithm : algorithms) {
+
+                runSearchCase(
+                        algorithm,
+                        "fixed_n_two_matches",
+                        text,
+                        pattern,
+                        createSearchRunner(algorithm)
+                );
+            }
+        }
+
+        // Experiment D:
+        // Fixed pattern size and text size.
+        // Every possible position is a match, including overlaps.
+        System.out.println();
+        System.out.println("Overlapping matches experiment...");
+
+        for (int textSize : TEXT_SIZES) {
+
+            String text = generator.repeatedString(textSize, 'A');
+            String pattern = generator.repeatedString(
+                    FIXED_PATTERN_SIZE,
+                    'A'
+            );
+
+            for (String algorithm : algorithms) {
+
+                runSearchCase(
+                        algorithm,
+                        "overlapping_matches",
+                        text,
+                        pattern,
+                        createSearchRunner(algorithm)
+                );
+            }
+        }
+    }
+
+    private SearchRunner createSearchRunner(String algorithm) {
+
+        if (algorithm.equals("Naive")) {
+
+            return (metrics, text, pattern) ->
+                    new NaiveSearch(metrics)
+                            .search(text, pattern).size();
+        }
+
+        if (algorithm.equals("KMP")) {
+
+            return (metrics, text, pattern) ->
+                    new KMP(metrics)
+                            .search(text, pattern).size();
+        }
+
+        throw new IllegalArgumentException(
+                "Unknown search algorithm: " + algorithm
+        );
     }
 
     private void runSearchCase(
@@ -357,11 +470,13 @@ public class Benchmark {
         );
 
         System.out.printf(
-                "String Search: %-10s %-10s n=%d m=%d median=%.4f ms%n",
+                "String Search: %-10s %-24s n=%d m=%d "
+                        + "result=%d median=%.4f ms%n",
                 algorithm,
                 input,
                 text.length(),
                 pattern.length(),
+                runs.get(0).result(),
                 median
         );
     }
